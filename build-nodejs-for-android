@@ -1,0 +1,299 @@
+#!/bin/bash
+function _msg { echo "$@" >&2; }
+function _dbg { [[ $NODEJS_BUILD_DBG == 1 ]] && echo "$@" >&2; }
+function _guide { echo "[BUILD]" "$@" >&2; }
+
+VERSION=2.2
+
+OUT_DIR=""; ARCH=""; APIL=""; STL=""; VERBOSE=""; PRE_CLEAN=""; BUILD_TYPE=""; TAG=""; COMPRESS="";
+
+while [[ $# -gt 0 ]]; do
+    _dbg "'$1'"
+    case $1 in
+    --arch) case $2 in arm|arm64|x86|x64|mipsel) ARCH=$2; _dbg " ARCH='$2'"; shift;;
+            ""|-*) _msg "expect arch behind $1. Must be arm(default)|arm64|x86|x64|mipsel"; exit 1;;
+            *) _msg "invalid arch '$2'. Must be arm(default)|arm64|x86|x64|mipsel"; exit 1;;
+            esac
+            ;;
+    --api)  case $2 in min|max) APIL=$2; _dbg " APIL='$2'"; shift;;
+            ""|-*) _msg "expect Android API level behind $1. Must be min(default)|max|an integer"; exit 1;;
+            *[!0-9]*) _msg "invalid Android API level '$2'. Must be min(default)|max|an integer"; exit 1;;
+            *) APIL=$2; _dbg " APIL='$2'"; shift;;
+            esac
+            ;;
+    --stl)  case $2 in gnustl|libc++|stlport) STL=$2; _dbg " STL='$2'"; shift;;
+            ""|-*) _msg "expect C++ STL behind $1. Must be gnustl(default)|libc++|stlport"; exit 1;;
+            *) _msg "invalid C++ STL '$2'. Must be gnustl(default)|libc++|stlport"; exit 1;;
+            esac
+            ;;
+    arm|arm64|x86|x64|mipsel)
+            ARCH=$1; _dbg " ->ARCH"
+            ;;
+    -o|--out)  case $2 in
+            ""|-*) _msg "expect output dir behind $1"; exit 1;;
+            *) OUT_DIR=$2; _dbg " OUT_DIR='$2'"; shift;;
+            esac
+            ;;
+    --pre-clean)
+            PRE_CLEAN=$1; _dbg " ->PRE_CLEAN"
+            ;;
+    --full|--limited)
+            BUILD_TYPE=$1; _dbg " ->BUILD_TYPE"
+            ;;
+    --compress)
+            COMPRESS=$1; _dbg " ->COMPRESS"
+            ;;
+    v*.*.*)
+            [[ $TAG ]] && { _msg "git tag already specified as '$TAG' for batch build"; exit 1; }
+            TAG=$1; _dbg " ->TAG";
+            ;;
+    -v|--verbose)
+            VERBOSE=--verbose; _dbg " ->VERBOSE"
+            ;;
+    --help*|--version)
+            break
+            ;;
+    --*)
+            _msg "invalid long option '$1'. Must be --out|--full|--limited|--arch|--api|--stl|pre-clean|--verbose|--version|--help"
+            exit 1
+            ;;
+    -*)
+            _msg "invalid short option '$1'. Must be -o(out) or -v(verbose)"
+            exit 1
+            ;;
+    "")
+            _dbg " :skip isolated empty arg"
+            ;;
+    *)
+            _msg "invalid git tag '$1' for batch build. Must be v*.*.*, for example: v6.6.0"; exit 1
+            ;;
+    esac
+
+    shift
+done
+
+case $1 in
+--help)
+    _msg "${0##*/} $VERSION"
+    _msg "Build node.js for android from source in current dir"
+    _msg ""
+    _msg "Usage: ${0##*/} [OPTIONS]"
+    _msg "--------------------------------------------------------------------------------"
+    _msg "OPTIONS:"
+    _msg " [--arch] ARCH  Android architecture:"
+    _msg "                {arm(default)|arm64|x86|x64|mipsel}"
+    _msg " --api    APIL  Android API level:"
+    _msg "                {min(default)|max|an integer}"
+    _msg " --stl    STL   C++ STL to use:"
+    _msg "                {gnustl(default)|libc++|stlport}"
+    _msg " --limited      Build --without-snapshot --without-inspector --without-intl"
+    _msg "                This is the default build type, limited build."
+    _msg " --full         Full build, not specify any --without-... option to NodeJS"
+    _msg "                Do not use with --limited."
+    _msg ""
+    _msg " -o OUT_DIR, --out OUT_DIR"
+    _msg "                Output dir or base output dir for batch mode(vN.N.N)."
+    _msg "                In batch mode(vN.N.N), by default it is ./out-bin."
+    _msg "                Otherwise, by default then output dir is:"
+    _msg "                 ./out-bin/nodejs-android-ARCH/       or"
+    _msg "                 ./out-bin/nodejs-android-ARCH-full/  if --full is specified"
+    _msg "                The log will be saved as as build.log at above dir."
+    _msg ""
+    _msg " vN.N.N         A git branch or tag name. For example: v6.6.0."
+    _msg "                This is the batch build mode for specific version."
+    _msg "                This will checkout the branch or tag, then build it for all"
+    _msg "                arch(arm,arm64,x86,x64,mipsel) and all build types(limited,full)"
+    _msg "                if no ARCH --limited --full specified, otherwise build for the"
+    _msg "                specified ARCH and build type."
+    _msg ""
+    _msg "                The output will be saved at"
+    _msg "                 OUT_DIR/nodejs-N.N.N-android-ARCH/"
+    _msg "                 OUT_DIR/nodejs-N.N.N-android-ARCH-full/"
+    _msg "                The log will be saved as as build.log at above dir."
+    _msg "                The OUT_DIR is ./out-bin by default."
+    _msg ""
+    _msg " --compress     Compress output files into all.7z or all.tgz in output dir"
+    _msg " --pre-clean    Remove intermediate output ./out/* before build"
+    _msg " -v, --verbose  Show verbose information, include compiler arguments"
+    _msg " --version      Show version of this tool"
+    _msg ""
+    exit 0
+    ;;
+--version)
+    _msg $VERSION
+    exit 0
+    ;;
+esac
+
+OPT=""
+[[ $APIL ]] && OPT+=" --api $APIL"
+[[ $STL ]] && OPT+=" --stl $STL"
+
+[[ $VERBOSE ]] && export AGCC_VERBOSE=1
+
+###############################################################################
+#batch mode
+
+if [[ $TAG ]]; then
+    _guide "Stash changes of tracked source files if changed"
+    git stash || exit
+    _guide "Checkout $TAG"
+    git checkout "$TAG" || exit
+
+    BASE_OUT_DIR=$OUT_DIR; [[ ! $OUT_DIR ]] && BASE_OUT_DIR=./out-bin
+    VER=${TAG#v} #remove first v char
+
+    results=()
+    [[ $ARCH ]] && ARCH_LIST=($ARCH) || ARCH_LIST=(arm arm64 x86 x64 mipsel)
+    for ARCH in "${ARCH_LIST[@]}"; do
+        if [[ ! $BUILD_TYPE || $BUILD_TYPE == --limited ]]; then
+            _guide "Restore tracked source files" && git reset --hard
+            OUT_DIR=$BASE_OUT_DIR/nodejs-$VER-android-$ARCH
+            _guide "-------------------------------------------------------------------------"
+            _guide "${0##*/}" $ARCH -o "'$OUT_DIR'" $COMPRESS $OPT
+            "$0" $ARCH -o "$OUT_DIR" $COMPRESS $OPT \
+            && results+=("SUCCESS: $OUT_DIR") || results+=("FAILURE: $OUT_DIR")
+        fi
+        if [[ ! $BUILD_TYPE || $BUILD_TYPE == --full ]]; then
+            _guide "Restore tracked source files" && git reset --hard
+            OUT_DIR=$BASE_OUT_DIR/nodejs-$VER-android-$ARCH-full
+            _guide "-------------------------------------------------------------------------"
+            _guide "${0##*/}" $ARCH -o "'$OUT_DIR'" $COMPRESS $OPT --full
+            "$0" $ARCH -o "$OUT_DIR" $COMPRESS $OPT --full \
+            && results+=("SUCCESS: $OUT_DIR") || results+=("FAILURE: $OUT_DIR")
+        fi
+    done
+
+    _guide "Restore tracked source files" && git reset --hard
+
+    _guide "========================================================================="
+    for r in "${results[@]}"; do _guide "$r"; done
+    [[ "${results[*]}" == *FAILURE:\ * ]] && { _guide "Please check build.log in above dirs."; exit 1; }
+    exit 0
+fi
+
+
+
+###############################################################################
+
+
+
+[[ ! $ARCH ]] && ARCH=arm
+
+[[ ! $OUT_DIR ]] && { OUT_DIR=./out-bin/nodejs-android-$ARCH; [[ $BUILD_TYPE == --full ]] && OUT_DIR+=-full; }
+[[ ! -d $OUT_DIR ]] && { mkdir -p "$OUT_DIR" || exit; }
+
+#pre-clean
+[[ $PRE_CLEAN ]] && _guide "Clean intermediate output ./out/*" && rm -fr out/*
+
+#auto pre-clean and create a mark file
+markFilePath=out/.build-nodejs-for-android-$ARCH; [[ $BUILD_TYPE == --full ]] && markFilePath+=-full
+if [[ -d out ]]; then
+    fileList=(out/.build-nodejs-for-android-*)
+    if [[ ${fileList[0]} != *\** && ${fileList[0]} != $markFilePath ]]; then
+        _guide "Clean intermediate output ./out/* came from different kind of build"
+        rm -fr out/*
+    fi
+    rm -f out/.build-nodejs-for-android-*
+else
+    mkdir out
+fi
+touch $markFilePath
+
+#OK, now build nodejs with android-gcc-toolchain
+_guide "Building...see '$OUT_DIR/build.log'"
+if [[ $BUILD_TYPE == --full ]]; then
+    case $OSTYPE in
+    darwin*)
+        case $ARCH in
+        arm    )
+         _guide android-gcc-toolchain arm    $OPT --host ar-dual-os,gcc-no-lrt,gcc-m32 -C "<<< \"./configure --dest-cpu=arm    --dest-os=android && make\""
+                android-gcc-toolchain arm    $OPT --host ar-dual-os,gcc-no-lrt,gcc-m32 -C  <<<  "./configure --dest-cpu=arm    --dest-os=android && make" ;;
+        arm64  )
+         _guide android-gcc-toolchain arm64  $OPT --host ar-dual-os,gcc-no-lrt         -C "<<< \"./configure --dest-cpu=arm64  --dest-os=android && make\""
+                android-gcc-toolchain arm64  $OPT --host ar-dual-os,gcc-no-lrt         -C  <<<  "./configure --dest-cpu=arm64  --dest-os=android && make" ;;
+        x86    )
+         _guide android-gcc-toolchain x86    $OPT --host ar-dual-os,gcc-no-lrt,gcc-m32 -C "<<< \"sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x86 --dest-os=android && make\""
+                android-gcc-toolchain x86    $OPT --host ar-dual-os,gcc-no-lrt,gcc-m32 -C  <<<  "sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x86 --dest-os=android && make" ;;
+        x64    )
+         _guide android-gcc-toolchain x64    $OPT --host ar-dual-os,gcc-no-lrt         -C "<<< \"sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x64 --dest-os=android --openssl-no-asm && make\""
+                android-gcc-toolchain x64    $OPT --host ar-dual-os,gcc-no-lrt         -C  <<<  "sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x64 --dest-os=android --openssl-no-asm && make" ;;
+        mipsel )
+         _guide android-gcc-toolchain mipsel $OPT --host ar-dual-os,gcc-no-lrt,gcc-m32 -C "<<< \"./configure --dest-cpu=mipsel --dest-os=android && make\""
+                android-gcc-toolchain mipsel $OPT --host ar-dual-os,gcc-no-lrt,gcc-m32 -C  <<<  "./configure --dest-cpu=mipsel --dest-os=android && make" ;;
+        esac;;
+    linux*)
+        case $ARCH in
+        arm    )
+         _guide android-gcc-toolchain arm    $OPT --host gcc-lpthread,gcc-m32 -C "<<< \"./configure --dest-cpu=arm    --dest-os=android && make\""
+                android-gcc-toolchain arm    $OPT --host gcc-lpthread,gcc-m32 -C  <<<  "./configure --dest-cpu=arm    --dest-os=android && make" ;;
+        arm64  )
+         _guide android-gcc-toolchain arm64  $OPT --host gcc-lpthread         -C "<<< \"./configure --dest-cpu=arm64  --dest-os=android && make\""
+                android-gcc-toolchain arm64  $OPT --host gcc-lpthread         -C  <<<  "./configure --dest-cpu=arm64  --dest-os=android && make" ;;
+        x86    )
+         _guide android-gcc-toolchain x86    $OPT --host gcc-lpthread,gcc-m32 -C "<<< \"sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x86 --dest-os=android && make\""
+                android-gcc-toolchain x86    $OPT --host gcc-lpthread,gcc-m32 -C  <<<  "sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x86 --dest-os=android && make" ;;
+        x64    )
+         _guide android-gcc-toolchain x64    $OPT --host gcc-lpthread         -C "<<< \"sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x64 --dest-os=android --openssl-no-asm && make\""
+                android-gcc-toolchain x64    $OPT --host gcc-lpthread         -C  <<<  "sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x64 --dest-os=android --openssl-no-asm && make" ;;
+        mipsel )
+         _guide android-gcc-toolchain mipsel $OPT --host gcc-lpthread,gcc-m32 -C "<<< \"./configure --dest-cpu=mipsel --dest-os=android && make\""
+                android-gcc-toolchain mipsel $OPT --host gcc-lpthread,gcc-m32 -C  <<<  "./configure --dest-cpu=mipsel --dest-os=android && make" ;;
+        esac;;
+    *) _msg "unsupported host OS $OSTYPE. Please use Mac or Linux"; exit 1 ;;
+    esac
+else
+    case $ARCH in
+    arm    )
+     _guide android-gcc-toolchain arm    $OPT "<<< \"./configure --dest-cpu=arm    --dest-os=android --without-snapshot --without-inspector --without-intl && make\""
+            android-gcc-toolchain arm    $OPT  <<<  "./configure --dest-cpu=arm    --dest-os=android --without-snapshot --without-inspector --without-intl && make" ;;
+    arm64  )
+     _guide android-gcc-toolchain arm64  $OPT "<<< \"./configure --dest-cpu=arm64  --dest-os=android --without-snapshot --without-inspector --without-intl && make\""
+            android-gcc-toolchain arm64  $OPT  <<<  "./configure --dest-cpu=arm64  --dest-os=android --without-snapshot --without-inspector --without-intl && make" ;;
+    x86    )
+     _guide android-gcc-toolchain x86    $OPT "<<< \"./configure --dest-cpu=x86    --dest-os=android --without-snapshot --without-inspector --without-intl && make\""
+            android-gcc-toolchain x86    $OPT  <<<  "./configure --dest-cpu=x86    --dest-os=android --without-snapshot --without-inspector --without-intl && make" ;;
+    x64    )
+     _guide android-gcc-toolchain x64    $OPT "<<< \"./configure --dest-cpu=x64    --dest-os=android --without-snapshot --without-inspector --without-intl --openssl-no-asm && make\""
+            android-gcc-toolchain x64    $OPT  <<<  "./configure --dest-cpu=x64    --dest-os=android --without-snapshot --without-inspector --without-intl --openssl-no-asm && make" ;;
+    mipsel )
+     _guide android-gcc-toolchain mipsel $OPT "<<< \"./configure --dest-cpu=mipsel --dest-os=android --without-snapshot --without-inspector --without-intl && make\""
+            android-gcc-toolchain mipsel $OPT  <<<  "./configure --dest-cpu=mipsel --dest-os=android --without-snapshot --without-inspector --without-intl && make" ;;
+    esac
+fi \
+2>&1 | tee "$OUT_DIR"/build.log
+
+lastError=${PIPESTATUS[0]};
+[[ $lastError != 0 ]] && { _guide "Build failed. See '$OUT_DIR/build.log'"; exit $lastError; }
+
+#copy build result to $OUT_DIR/{bin,lib,include}
+_guide "Installing to '$OUT_DIR'"
+android-gcc-toolchain $ARCH $OPT -C make DESTDIR="$OUT_DIR" PREFIX="" install | grep -vE '^installing|^symlinking|^removing'
+
+lastError=${PIPESTATUS[0]};
+[[ $lastError != 0 ]] && { _guide "Failed to run make install"; exit $lastError; }
+
+{ [[ -d "$OUT_DIR"/extras ]] || mkdir "$OUT_DIR"/extras; } && \
+for f in out/Release/*; do
+    [[ -f $f && -x $f && ${f##*/} != node ]] && { ln -f "$f" "$OUT_DIR"/extras/ || cp -f "$f" "$OUT_DIR"/extras/ || exit; }
+done
+
+ls -lF "$OUT_DIR"/bin/* "$OUT_DIR"/extras/*
+
+if [[ $COMPRESS ]] && \
+    if type -p 7z >/dev/null; then
+        rm -f "$OUT_DIR"/all.7z || mv -f "$OUT_DIR"/all.7z "$OUT_DIR"/all.7z.old
+        _guide "Compressing output to '$OUT_DIR/all.7z'"
+        (cd "$OUT_DIR" && 7z a all.7z bin lib include share extras | grep -vE '^Compressing|^$'; exit ${PIPESTATUS[0]})
+    else
+        rm -f "$OUT_DIR"/all.tgz || mv -f "$OUT_DIR"/all.tgz "$OUT_DIR"/all.tgz.old
+        _guide "Compressing output to '$OUT_DIR/all.tgz'"
+        (cd "$OUT_DIR" && tar czf all.tgz bin lib include share extras)
+    fi
+then
+    _guide "Clean '$OUT_DIR'"
+    rm -fr "$OUT_DIR"/bin "$OUT_DIR"/bin/npm "$OUT_DIR"/lib "$OUT_DIR"/include "$OUT_DIR"/share "$OUT_DIR"/extras
+fi
+
+_guide "Build done"
+exit 0
