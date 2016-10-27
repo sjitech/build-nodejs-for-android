@@ -16,7 +16,7 @@ Build nodejs for android(arm,arm64,x86,x64,mipsel) perfectly and provide prebuil
 
 ## Development Environment
 
-**Source of [NodeJS](https://github.com/nodejs/node): 6.3.1-6.9.1**
+**Source of [NodeJS](https://github.com/nodejs/node): 6.3.1-7.0.0**
 
 OS:
 - **Mac**: OS X 10.11.5/10.11.6 EI Capitan (64bit), (Optional)Xcode 8.0(8A218a)
@@ -277,7 +277,7 @@ $HOME/node $HOME/lib/node_modules/npm/bin/npm-cli.js "$@"
 ## 开发环境
 
 源码:
-- [NodeJS](https://github.com/nodejs/node): v6.3.1-6.9.1
+- [NodeJS](https://github.com/nodejs/node): v6.3.1-7.0.0
 
 编译工作机器:
 - **Mac**: OS X 10.11.5/10.11.6 EI Capitan (64bit), (可选)Xcode 8.0(8A218a)

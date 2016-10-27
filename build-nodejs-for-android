@@ -3,7 +3,7 @@ function _msg { echo "$@" >&2; }
 function _dbg { [[ $NODEJS_BUILD_DBG == 1 ]] && echo "$@" >&2; }
 function _guide { echo "[BUILD]" "$@" >&2; }
 
-VERSION=2.2
+VERSION=2.3
 
 OUT_DIR=""; ARCH=""; APIL=""; STL=""; VERBOSE=""; PRE_CLEAN=""; BUILD_TYPE=""; TAG=""; COMPRESS="";
 
@@ -165,6 +165,7 @@ if [[ $TAG ]]; then
     done
 
     _guide "Restore tracked source files" && git reset --hard
+    _guide "Clean intermediate output ./out/*" && rm -fr out/*
 
     _guide "========================================================================="
     for r in "${results[@]}"; do _guide "$r"; done
