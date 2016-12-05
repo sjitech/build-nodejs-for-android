@@ -13,7 +13,6 @@ RUN sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get -y instal
     git clone https://github.com/nodejs/node && \
     cd node && \
     ( build-nodejs-for-android v7.2.0 --verbose --compress >/dev/null; : ) && \
-    git clean -fdx && \
     echo "Removing infrequent toolchains" && \
     for ARCH in arm64 x86 x64 mips; do android-gcc-toolchain $ARCH bash -c 'rm -fr "${BIN%/*}"'; done && \
     echo "Done"
