@@ -3,7 +3,7 @@ function _msg { echo "$@" >&2; }
 function _dbg { [[ $NODEJS_BUILD_DBG == 1 ]] && echo "$@" >&2; }
 function _guide { echo "[BUILD]" "$@" >&2; }
 
-VERSION=2.3
+VERSION=2.4
 
 OUT_DIR=""; ARCH=""; APIL=""; STL=""; VERBOSE=""; PRE_CLEAN=""; BUILD_TYPE=""; TAG=""; COMPRESS="";
 
@@ -214,11 +214,11 @@ if [[ $BUILD_TYPE == --full ]]; then
          _guide android-gcc-toolchain arm64  $OPT --host ar-dual-os,gcc-no-lrt         -C "<<< \"./configure --dest-cpu=arm64  --dest-os=android && make\""
                 android-gcc-toolchain arm64  $OPT --host ar-dual-os,gcc-no-lrt         -C  <<<  "./configure --dest-cpu=arm64  --dest-os=android && make" ;;
         x86    )
-         _guide android-gcc-toolchain x86    $OPT --host ar-dual-os,gcc-no-lrt,gcc-m32 -C "<<< \"sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x86 --dest-os=android && make\""
-                android-gcc-toolchain x86    $OPT --host ar-dual-os,gcc-no-lrt,gcc-m32 -C  <<<  "sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x86 --dest-os=android && make" ;;
+         _guide android-gcc-toolchain x86    $OPT --host ar-dual-os,gcc-no-lrt,gcc-m32 -C "<<< \"sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x86 --dest-os=android $(grep -o -- --cross-compiling configure) && make\""
+                android-gcc-toolchain x86    $OPT --host ar-dual-os,gcc-no-lrt,gcc-m32 -C  <<<  "sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x86 --dest-os=android $(grep -o -- --cross-compiling configure) && make" ;;
         x64    )
-         _guide android-gcc-toolchain x64    $OPT --host ar-dual-os,gcc-no-lrt         -C "<<< \"sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x64 --dest-os=android --openssl-no-asm && make\""
-                android-gcc-toolchain x64    $OPT --host ar-dual-os,gcc-no-lrt         -C  <<<  "sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x64 --dest-os=android --openssl-no-asm && make" ;;
+         _guide android-gcc-toolchain x64    $OPT --host ar-dual-os,gcc-no-lrt         -C "<<< \"sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x64 --dest-os=android $(grep -o -- --cross-compiling configure) --openssl-no-asm && make\""
+                android-gcc-toolchain x64    $OPT --host ar-dual-os,gcc-no-lrt         -C  <<<  "sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x64 --dest-os=android $(grep -o -- --cross-compiling configure) --openssl-no-asm && make" ;;
         mipsel )
          _guide android-gcc-toolchain mipsel $OPT --host ar-dual-os,gcc-no-lrt,gcc-m32 -C "<<< \"./configure --dest-cpu=mipsel --dest-os=android && make\""
                 android-gcc-toolchain mipsel $OPT --host ar-dual-os,gcc-no-lrt,gcc-m32 -C  <<<  "./configure --dest-cpu=mipsel --dest-os=android && make" ;;
@@ -232,11 +232,11 @@ if [[ $BUILD_TYPE == --full ]]; then
          _guide android-gcc-toolchain arm64  $OPT --host gcc-lpthread         -C "<<< \"./configure --dest-cpu=arm64  --dest-os=android && make\""
                 android-gcc-toolchain arm64  $OPT --host gcc-lpthread         -C  <<<  "./configure --dest-cpu=arm64  --dest-os=android && make" ;;
         x86    )
-         _guide android-gcc-toolchain x86    $OPT --host gcc-lpthread,gcc-m32 -C "<<< \"sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x86 --dest-os=android && make\""
-                android-gcc-toolchain x86    $OPT --host gcc-lpthread,gcc-m32 -C  <<<  "sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x86 --dest-os=android && make" ;;
+         _guide android-gcc-toolchain x86    $OPT --host gcc-lpthread,gcc-m32 -C "<<< \"sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x86 --dest-os=android $(grep -o -- --cross-compiling configure) && make\""
+                android-gcc-toolchain x86    $OPT --host gcc-lpthread,gcc-m32 -C  <<<  "sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x86 --dest-os=android $(grep -o -- --cross-compiling configure) && make" ;;
         x64    )
-         _guide android-gcc-toolchain x64    $OPT --host gcc-lpthread         -C "<<< \"sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x64 --dest-os=android --openssl-no-asm && make\""
-                android-gcc-toolchain x64    $OPT --host gcc-lpthread         -C  <<<  "sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x64 --dest-os=android --openssl-no-asm && make" ;;
+         _guide android-gcc-toolchain x64    $OPT --host gcc-lpthread         -C "<<< \"sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x64 --dest-os=android $(grep -o -- --cross-compiling configure) --openssl-no-asm && make\""
+                android-gcc-toolchain x64    $OPT --host gcc-lpthread         -C  <<<  "sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x64 --dest-os=android $(grep -o -- --cross-compiling configure) --openssl-no-asm && make" ;;
         mipsel )
          _guide android-gcc-toolchain mipsel $OPT --host gcc-lpthread,gcc-m32 -C "<<< \"./configure --dest-cpu=mipsel --dest-os=android && make\""
                 android-gcc-toolchain mipsel $OPT --host gcc-lpthread,gcc-m32 -C  <<<  "./configure --dest-cpu=mipsel --dest-os=android && make" ;;
@@ -252,11 +252,11 @@ else
      _guide android-gcc-toolchain arm64  $OPT "<<< \"./configure --dest-cpu=arm64  --dest-os=android --without-snapshot --without-inspector --without-intl && make\""
             android-gcc-toolchain arm64  $OPT  <<<  "./configure --dest-cpu=arm64  --dest-os=android --without-snapshot --without-inspector --without-intl && make" ;;
     x86    )
-     _guide android-gcc-toolchain x86    $OPT "<<< \"./configure --dest-cpu=x86    --dest-os=android --without-snapshot --without-inspector --without-intl && make\""
-            android-gcc-toolchain x86    $OPT  <<<  "./configure --dest-cpu=x86    --dest-os=android --without-snapshot --without-inspector --without-intl && make" ;;
+     _guide android-gcc-toolchain x86    $OPT "<<< \"./configure --dest-cpu=x86    --dest-os=android --without-snapshot --without-inspector --without-intl $(grep -o -- --cross-compiling configure) && make\""
+            android-gcc-toolchain x86    $OPT  <<<  "./configure --dest-cpu=x86    --dest-os=android --without-snapshot --without-inspector --without-intl $(grep -o -- --cross-compiling configure) && make" ;;
     x64    )
-     _guide android-gcc-toolchain x64    $OPT "<<< \"./configure --dest-cpu=x64    --dest-os=android --without-snapshot --without-inspector --without-intl --openssl-no-asm && make\""
-            android-gcc-toolchain x64    $OPT  <<<  "./configure --dest-cpu=x64    --dest-os=android --without-snapshot --without-inspector --without-intl --openssl-no-asm && make" ;;
+     _guide android-gcc-toolchain x64    $OPT "<<< \"./configure --dest-cpu=x64    --dest-os=android --without-snapshot --without-inspector --without-intl $(grep -o -- --cross-compiling configure) --openssl-no-asm && make\""
+            android-gcc-toolchain x64    $OPT  <<<  "./configure --dest-cpu=x64    --dest-os=android --without-snapshot --without-inspector --without-intl $(grep -o -- --cross-compiling configure) --openssl-no-asm && make" ;;
     mipsel )
      _guide android-gcc-toolchain mipsel $OPT "<<< \"./configure --dest-cpu=mipsel --dest-os=android --without-snapshot --without-inspector --without-intl && make\""
             android-gcc-toolchain mipsel $OPT  <<<  "./configure --dest-cpu=mipsel --dest-os=android --without-snapshot --without-inspector --without-intl && make" ;;
