@@ -16,7 +16,7 @@ Build nodejs for android(arm,arm64,x86,x64,mipsel) perfectly and provide prebuil
 
 ## Development Environment
 
-**Source of [NodeJS](https://github.com/nodejs/node): 6.3.1-7.4.0**
+**Source of [NodeJS](https://github.com/nodejs/node): 6.3.1-7.5.0**
 
 OS:
 - **Mac**: OS X 10.11.5/10.11.6 EI Capitan (64bit), (Optional)Xcode 8.0(8A218a)
@@ -106,7 +106,7 @@ android-gcc-toolchain x86    --host ar-dual-os,gcc-no-lrt,gcc-m32 -C <<< "sed -i
 android-gcc-toolchain x64    --host ar-dual-os,gcc-no-lrt         -C <<< "sed -i.bak 's/cross_compiling = target_arch != host_arch/cross_compiling = True/' configure && ./configure --dest-cpu=x64 --dest-os=android $(grep -o -- --cross-compiling configure) --openssl-no-asm && make"
 android-gcc-toolchain mipsel --host ar-dual-os,gcc-no-lrt,gcc-m32 -C <<< "./configure --dest-cpu=mipsel --dest-os=android && make"
 ```
-The sed command is to modify a bug of `configure`. Note: from node.js 7.4.0, sed is not needed, you can add `--cross-compiling` to the configure command.
+The sed command is to modify a bug of `configure`. Note: from node.js 7.5.0, sed is not needed, you can add `--cross-compiling` to the configure command.
  
 ### Full build on Linux
  
@@ -277,7 +277,7 @@ $HOME/node $HOME/lib/node_modules/npm/bin/npm-cli.js "$@"
 ## 开发环境
 
 源码:
-- [NodeJS](https://github.com/nodejs/node): v6.3.1-7.4.0
+- [NodeJS](https://github.com/nodejs/node): v6.3.1-7.5.0
 
 编译工作机器:
 - **Mac**: OS X 10.11.5/10.11.6 EI Capitan (64bit), (可选)Xcode 8.0(8A218a)
@@ -367,7 +367,7 @@ android-gcc-toolchain x64    --host ar-dual-os,gcc-no-lrt         -C <<< "sed -i
 android-gcc-toolchain mipsel --host ar-dual-os,gcc-no-lrt,gcc-m32 -C <<< "./configure --dest-cpu=mipsel --dest-os=android && make"
 ```
 
-sed命令是修改源码里configure脚本里的错误. Note: 从node.js 7.4.0开始, 这段sed命令可以去掉，而改成添加`--cross-compiling`到configure命令。
+sed命令是修改源码里configure脚本里的错误. Note: 从node.js 7.5.0开始, 这段sed命令可以去掉，而改成添加`--cross-compiling`到configure命令。
     
 ### Full Build on Linux
 
@@ -899,4 +899,4 @@ NodeJS对Android支持度很弱,想要Android版的,那就得折腾。那时大�
     ```
     这里的$\___纯粹为了grep筛选好用，另外反正$\___是空的,就算原封不动copy下来在贴到别的地方执行也不会出错。
     
-- 2017/01/10: Node.js v7.4.0开始，configure脚本支持明确的--cross-compiling参数了。
+- 2017/01/10: 至少从Node.js v7.4.0开始，configure脚本支持明确的--cross-compiling参数了。
